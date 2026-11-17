@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>指标口径双算平台</title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header>
+  <h1>指标口径双算平台 <span class="sub">口径登记 · 指标计算 · 报告消费</span></h1>
+  <nav id="tabs">
+    <button class="tab active" data-tab="dashboard">总览</button>
+    <button class="tab" data-tab="calibers">口径登记</button>
+    <button class="tab" data-tab="reports">报表与差异</button>
+    <button class="tab" data-tab="impacts">影响与重算</button>
+    <button class="tab" data-tab="sim">撤回 / 退出模拟</button>
+    <button class="tab" data-tab="orders">订单查询</button>
+    <button class="tab" data-tab="audit">审计日志</button>
+  </nav>
+</header>
+
+<main>
+  <!-- 总览 -->
+  <section id="tab-dashboard" class="panel active">
+    <div id="kpis" class="kpi-row"></div>
+    <h2>口径与报表状态</h2>
+    <div id="dash-grid" class="grid2"></div>
+  </section>
+
+  <!-- 口径登记 -->
+  <section id="tab-calibers" class="panel">
+    <div class="grid2">
+      <div>
+        <h2>已登记口径</h2>
+        <div id="caliber-list"></div>
+      </div>
+      <div>
+        <h2>登记候选口径</h2>
+        <form id="form-candidate" class="card form">
+          <label>指标
+            <select name="metric_id" required></select>
+          </label>
+          <label>候选版本号 <input name="version" placeholder="v2" required></label>
+          <label>口径说明 <input name="description" placeholder="例如：GMV 改按支付时间归属" required></label>
+          <label>时间归属
+            <select name="time_attr">
+              <option value="order_time">下单时间 order_time</option>
+              <option value="pay_time">支付时间 pay_time</option>
+            </select>
+          </label>
+          <label>计算公式
+            <select name="formula"></select>
+          </label>
+          <div class="filters-edit">
+            <div class="row-head">维度过滤（同一指标所有报表共用此规则，不可复制公式私改）</div>
+            <div id="filter-rows"></div>
+            <button type="button" id="btn-add-filter" class="ghost">+ 增加过滤条件</button>
+          </div>
+          <label>变更说明 <textarea name="change_note" rows="2" placeholder="说明本次改了什么、为什么"></textarea></label>
+          <button type="submit">登记并触发双算与影响分析</button>
+        </form>
+        <div id="amend-box" class="card hidden">
+          <h3>修订候选口径 <code id="amend-id"></code></h3>
+          <p class="muted">修订后 revision 自增、影响重新登记、全部候选产物自动重算。</p>
+          <form id="form-amend" class="form"></form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 报表与差异 -->
+  <section id="tab-reports" class="panel">
+    <h2>报表消费端</h2>
+    <div class="toolbar">
+      <label>选择报表 <select id="report-select"></select></label>
+      <span id="report-policy"></span>
+    </div>
+    <div id="report-detail"></div>
+    <h2>逐行贡献差异（同报表同期间，两个口径并排对账）</h2>
+    <div class="toolbar">
+      <label>期间 <select id="diff-period"></select></label>
+      <button id="btn-diff">生成逐行差异</button>
+      <label class="check"><input type="checkbox" id="diff-only-changes" checked> 仅看有差异的订单</label>
+    </div>
+    <div id="diff-result"></div>
+  </section>
+
+  <!-- 影响与重算 -->
+  <section id="tab-impacts" class="panel">
+    <h2>口径变化影响登记</h2>
+    <p class="muted">修改维度过滤或时间归属后，系统自动找出需要重算的报表产物；<b>可比较</b>指同窗口同公式可逐行对账，
+      <b>输入已不同</b>指两口径进入计算的订单集合已经变化（如时间归属改变），总额不能直接相比。</p>
+    <div id="impact-list"></div>
+  </section>
+
+  <!-- 模拟 -->
+  <section id="tab-sim" class="panel">
+    <h2>模拟：新规则撤回</h2>
+    <div class="toolbar">
+      <label>候选口径 <select id="sim-caliber"></select></label>
+      <button id="btn-sim-withdraw">模拟撤回（不落库）</button>
+      <button id="btn-real-withdraw" class="danger">执行真实撤回</button>
+    </div>
+    <div id="sim-withdraw-result"></div>
+    <h2>模拟：计算器退出</h2>
+    <div class="toolbar">
+      <label>计算引擎 <select id="sim-engine"></select></label>
+      <button id="btn-sim-retire">模拟退出（不落库）</button>
+      <button id="btn-real-retire" class="danger">执行真实退出</button>
+      <button id="btn-reactivate" class="ghost hidden">重新启用引擎</button>
+    </div>
+    <div id="sim-retire-result"></div>
+  </section>
+
+  <!-- 订单查询 -->
+  <section id="tab-orders" class="panel">
+    <h2>虚构原始订单查询 <span id="order-count" class="muted"></span></h2>
+    <form id="form-orders" class="card form inline">
+      <label>订单号 <input name="order_id" placeholder="SO0001"></label>
+      <label>状态 <select name="status"><option value="">全部</option></select></label>
+      <label>渠道 <select name="channel"><option value="">全部</option></select></label>
+      <label>大区 <select name="region"><option value="">全部</option></select></label>
+      <label>品类 <select name="category"><option value="">全部</option></select></label>
+      <label>赠品
+        <select name="is_gift"><option value="">全部</option><option value="1">仅赠品</option><option value="0">非赠品</option></select>
+      </label>
+      <label>时间字段
+        <select name="date_field">
+          <option value="order_time">下单时间</option>
+          <option value="pay_time">支付时间</option>
+        </select>
+      </label>
+      <label>起 <input name="date_from" type="date"></label>
+      <label>止 <input name="date_to" type="date"></label>
+      <button type="submit">查询</button>
+    </form>
+    <div id="orders-result"></div>
+  </section>
+
+  <!-- 审计 -->
+  <section id="tab-audit" class="panel">
+    <h2>审计日志（全部登记 / 审批 / 撤回 / 重算留痕）</h2>
+    <div id="audit-list"></div>
+  </section>
+</main>
+
+<div id="toast" class="hidden"></div>
+<script src="/app.js"></script>
+</body>
+</html>
